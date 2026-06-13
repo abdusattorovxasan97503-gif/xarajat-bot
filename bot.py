@@ -93,7 +93,7 @@ def ovoz_matn(fayl_yoli):
     logger.info(f"Whisper response: {response.status_code} - {response.text}")
     if response.status_code != 200:
         raise Exception(f"Whisper API xato: {response.status_code} - {response.text}")
-    return response.json().get("text", ""))
+    return response.json().get("text", "")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
