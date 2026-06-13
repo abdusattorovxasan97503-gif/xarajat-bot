@@ -175,7 +175,7 @@ async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"🗣 Eshitildi: {matn}")
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
-            await update.message.reply_text("❌ Summa topilmadi.")
+            await update.message.reply_text(" Summa topilmadi.")
             return
         xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
