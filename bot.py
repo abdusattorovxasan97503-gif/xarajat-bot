@@ -1,4 +1,3 @@
-cat > /home/claude/bot.py << 'EOF'
 import os
 import sqlite3
 import logging
@@ -190,5 +189,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
-echo "Tayyor"
