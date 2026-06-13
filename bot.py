@@ -1,10 +1,11 @@
+import os
 import sqlite3
 import logging
 import json
+import requests
 from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import httpx
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -65,7 +66,7 @@ Agar summa topilmasa: {"kategoriya": null, "summa": null, "izoh": null}"""
             {"role": "user", "content": matn}
         ]
     }
-    response = httpx.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
     result = response.json()
     text = result["choices"][0]["message"]["content"].strip()
     text = text.replace("```json", "").replace("```", "").strip()
@@ -74,7 +75,7 @@ Agar summa topilmasa: {"kategoriya": null, "summa": null, "izoh": null}"""
 def ovoz_matn(fayl_yoli):
     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
     with open(fayl_yoli, "rb") as f:
-        response = httpx.post(
+        response = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
             headers=headers,
             data={"model": "whisper-1", "language": "uz"},
