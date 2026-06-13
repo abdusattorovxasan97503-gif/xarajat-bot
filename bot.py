@@ -81,7 +81,19 @@ def ovoz_matn(fayl_yoli):
             data={"model": "whisper-1", "language": "uz"},
             files={"file": ("audio.ogg", f, "audio/ogg")}
         )
-    return response.json().get("text", "")
+    def ovoz_matn(fayl_yoli):
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+    with open(fayl_yoli, "rb") as f:
+        response = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers=headers,
+            data={"model": "whisper-1", "language": "uz"},
+            files={"file": ("audio.ogg", f, "audio/ogg")}
+        )
+    logger.info(f"Whisper response: {response.status_code} - {response.text}")
+    if response.status_code != 200:
+        raise Exception(f"Whisper API xato: {response.status_code} - {response.text}")
+    return response.json().get("text", ""))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -174,7 +186,7 @@ async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         logger.error(f"Ovoz xatosi: {e}")
-        await update.message.reply_text("❌ Ovozni qayta ishlashda xatolik.")
+        await update.message.reply_text("f"❌ Xatolik: {e}"")
 
 def main():
     init_db()
