@@ -50,18 +50,7 @@ def matn_tahlil(matn):
         "messages": [
             {
                 "role": "system",
-                "content": """Foydalanuvchi xarajat haqida matn yozadi. 
-Siz undan kategoriya va summani ajratib oling.
-Javobni faqat JSON formatida bering:
-{"kategoriya": "...", "summa": 12345, "izoh": "..."}
-
-Kategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa
-
-Misol:
-"bugun nonga 20000 sarf qildim" -> {"kategoriya": "oziq-ovqat", "summa": 20000, "izoh": "non"}
-"taksi 15000" -> {"kategoriya": "transport", "summa": 15000, "izoh": "taksi"}
-
-Agar summa topilmasa: {"kategoriya": null, "summa": null, "izoh": null}"""
+                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
             },
             {"role": "user", "content": matn}
         ]
@@ -81,27 +70,18 @@ def ovoz_matn(fayl_yoli):
             data={"model": "whisper-1", "language": "uz"},
             files={"file": ("audio.ogg", f, "audio/ogg")}
         )
-    def ovoz_matn(fayl_yoli):
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    with open(fayl_yoli, "rb") as f:
-        response = requests.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers=headers,
-            data={"model": "whisper-1", "language": "uz"},
-            files={"file": ("audio.ogg", f, "audio/ogg")}
-        )
-    logger.info(f"Whisper response: {response.status_code} - {response.text}")
+    logger.info(f"Whisper: {response.status_code} - {response.text}")
     if response.status_code != 200:
-        raise Exception(f"Whisper API xato: {response.status_code} - {response.text}")
+        raise Exception(f"Whisper xato {response.status_code}: {response.text}")
     return response.json().get("text", "")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Salom! Men xarajat hisobchi botman 💰\n\n"
+        "Salom! Men xarajat hisobchi botman\n\n"
         "Ovozli yoki matnli xabar yuboring:\n"
-        "Masalan: 'Nonga 20000 sarf qildim'\n\n"
-        "📊 Hisobot uchun: /hisobot\n"
-        "🗑 Tozalash uchun: /tozala"
+        "Masalan: Nonga 20000 sarf qildim\n\n"
+        "Hisobot uchun: /hisobot\n"
+        "Tozalash uchun: /tozala"
     )
 
 async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -124,17 +104,11 @@ async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     jami = sum(r[1] for r in natijalar)
-    xabar = f"📊 *{datetime.now().strftime('%Y-%m')} oyi hisoboti*\n\n"
-    emoji_map = {
-        "oziq-ovqat": "🍞", "transport": "🚗", "kiyim": "👕",
-        "kommunal": "💡", "soglik": "💊", "talim": "📚",
-        "kongilochar": "🎮", "boshqa": "📦"
-    }
+    xabar = f"{datetime.now().strftime('%Y-%m')} oyi hisoboti\n\n"
     for kategoriya, summa in natijalar:
-        emoji = emoji_map.get(kategoriya, "📦")
-        xabar += f"{emoji} {kategoriya}: *{summa:,.0f}* so'm\n"
-    xabar += f"\n💰 *Jami: {jami:,.0f} so'm*"
-    await update.message.reply_text(xabar, parse_mode="Markdown")
+        xabar += f"{kategoriya}: {summa:,.0f} som\n"
+    xabar += f"\nJami: {jami:,.0f} som"
+    await update.message.reply_text(xabar)
 
 async def tozala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -143,7 +117,7 @@ async def tozala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("DELETE FROM xarajatlar WHERE user_id=?", (user_id,))
     conn.commit()
     conn.close()
-    await update.message.reply_text("✅ Barcha xarajatlar o'chirildi.")
+    await update.message.reply_text("Barcha xarajatlar ochirildi.")
 
 async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -151,42 +125,45 @@ async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
-            await update.message.reply_text("❌ Summa topilmadi. Masalan:\n'Nonga 20000 sarf qildim'")
+            await update.message.reply_text("Summa topilmadi. Masalan: Nonga 20000 sarf qildim")
             return
         xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
-            f"✅ Saqlandi!\n"
-            f"📂 Kategoriya: {natija['kategoriya']}\n"
-            f"💵 Summa: {natija['summa']:,.0f} so'm\n"
-            f"📝 Izoh: {natija['izoh']}"
+            f"Saqlandi!\n"
+            f"Kategoriya: {natija['kategoriya']}\n"
+            f"Summa: {natija['summa']:,.0f} som\n"
+            f"Izoh: {natija['izoh']}"
         )
     except Exception as e:
         logger.error(f"Xato: {e}")
-        await update.message.reply_text("❌ Xatolik yuz berdi. Qayta urinib ko'ring.")
+        await update.message.reply_text(f"Xatolik: {e}")
 
 async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    await update.message.reply_text("🎤 Ovoz qabul qilindi, tahlil qilinmoqda...")
+    await update.message.reply_text("Ovoz qabul qilindi, tahlil qilinmoqda...")
     try:
         fayl = await update.message.voice.get_file()
         fayl_yoli = f"/tmp/ovoz_{user_id}.ogg"
         await fayl.download_to_drive(fayl_yoli)
         matn = ovoz_matn(fayl_yoli)
-        await update.message.reply_text(f"🗣 Eshitildi: {matn}")
+        if not matn:
+            await update.message.reply_text("Ovoz tanilmadi. Aniqroq gapiring.")
+            return
+        await update.message.reply_text(f"Eshitildi: {matn}")
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
-            await update.message.reply_text(" Summa topilmadi.")
+            await update.message.reply_text("Summa topilmadi.")
             return
         xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
-            f"✅ Saqlandi!\n"
-            f"📂 Kategoriya: {natija['kategoriya']}\n"
-            f"💵 Summa: {natija['summa']:,.0f} so'm\n"
-            f"📝 Izoh: {natija['izoh']}"
+            f"Saqlandi!\n"
+            f"Kategoriya: {natija['kategoriya']}\n"
+            f"Summa: {natija['summa']:,.0f} som\n"
+            f"Izoh: {natija['izoh']}"
         )
     except Exception as e:
         logger.error(f"Ovoz xatosi: {e}")
-        await update.message.reply_text("f"❌ Xatolik: {e}"")
+        await update.message.reply_text(f"Xatolik: {e}")
 
 def main():
     init_db()
