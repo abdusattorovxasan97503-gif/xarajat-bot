@@ -53,7 +53,20 @@ def matn_tahlil(matn):
         "messages": [
             {
                 "role": "system",
-                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nMuhim qoidalar:\n- 'min', 'ming', 'мин', 'миң' = 1000 koeffitsienti\n- 'yigirma' = 20, 'o'ttiz' = 30, 'qirq' = 40, 'ellik' = 50\n- 'yigirma ming' = 20000, 'o'ttiz ming' = 30000\n- Raqam va so'zni birgalikda hisobla\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
+                "content": (
+                    "Foydalanuvchi xarajat haqida matn yozadi. "
+                    "Siz undan kategoriya va summani ajratib oling. "
+                    "Javobni faqat JSON formatida bering: "
+                    "{\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\n"
+                    "Kategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\n"
+                    "Muhim qoidalar:\n"
+                    "- min, ming, мин, миң = 1000 koeffitsienti\n"
+                    "- yigirma=20, ottiz=30, qirq=40, ellik=50, oltmish=60, yetmish=70, sakson=80, tokson=90\n"
+                    "- yigirma ming = 20000, ottiz ming = 30000, ellik ming = 50000\n"
+                    "- Raqam va sozni birgalikda hisobla\n\n"
+                    "Agar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
+                )
+            },
             {"role": "user", "content": matn}
         ]
     }
@@ -87,7 +100,7 @@ def tugmalar():
 
 def saqlangan_tugmalar(xarajat_id):
     keyboard = [
-        [InlineKeyboardButton("O'chirish", callback_data=f"del_{xarajat_id}")],
+        [InlineKeyboardButton("Ochirish", callback_data=f"del_{xarajat_id}")],
         [
             InlineKeyboardButton("Hisobot", callback_data="hisobot"),
             InlineKeyboardButton("Tozalash", callback_data="tozala")
@@ -139,8 +152,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "- Har oy yakunida hisobot yuboraman\n\n"
         "Ishlatish juda oson:\n"
         "Shunchaki ovozli xabar yuboring:\n"
-        "Masalan: 'Nonga 20000 sarf qildim'\n"
-        "Yoki matn yozing: 'Taksi 15000'\n\n"
+        "Masalan: Nonga 20000 sarf qildim\n"
+        "Yoki matn yozing: Taksi 15000\n\n"
         "Har oyning oxirida barcha xarajatlaringiz\n"
         "hisoboti avtomatik yuboriladi!\n\n"
         "Boshlaylik!",
@@ -227,7 +240,7 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c.execute("DELETE FROM xarajatlar WHERE id=? AND user_id=?", (xid, user_id))
         conn.commit()
         conn.close()
-        await query.message.reply_text("Xarajat o'chirildi.", reply_markup=tugmalar())
+        await query.message.reply_text("Xarajat ochirildi.", reply_markup=tugmalar())
 
 async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
