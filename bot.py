@@ -14,6 +14,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+user_states = {}
+
 def init_db():
     conn = sqlite3.connect("xarajatlar.db")
     c = conn.cursor()
@@ -94,6 +96,15 @@ def tugmalar():
         [
             InlineKeyboardButton("Hisobot", callback_data="hisobot"),
             InlineKeyboardButton("Tozalash", callback_data="tozala")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def tasdiqlash_tugmalari():
+    keyboard = [
+        [
+            InlineKeyboardButton("Togri", callback_data="togri"),
+            InlineKeyboardButton("Tahrirlash", callback_data="tahrir")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -200,7 +211,33 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
 
-    if query.data == "hisobot":
+    if query.data == "togri":
+        if user_id in user_states and "matn" in user_states[user_id]:
+            matn = user_states[user_id]["matn"]
+            try:
+                natija = matn_tahlil(matn)
+                if natija["summa"] is None:
+                    await query.message.reply_text("Summa topilmadi. Qayta yuboring.", reply_markup=tugmalar())
+                    return
+                xarajat_id = xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
+                user_states.pop(user_id, None)
+                await query.message.reply_text(
+                    f"Saqlandi!\n"
+                    f"Kategoriya: {natija['kategoriya']}\n"
+                    f"Summa: {natija['summa']:,.0f} som\n"
+                    f"Izoh: {natija['izoh']}",
+                    reply_markup=saqlangan_tugmalar(xarajat_id)
+                )
+            except Exception as e:
+                await query.message.reply_text(f"Xatolik: {e}", reply_markup=tugmalar())
+
+    elif query.data == "tahrir":
+        user_states[user_id] = {"kutish": True}
+        await query.message.reply_text(
+            "To'g'ri matnni yozing:\nMasalan: Nonga 20000 sarf qildim"
+        )
+
+    elif query.data == "hisobot":
         conn = sqlite3.connect("xarajatlar.db")
         c = conn.cursor()
         oy = datetime.now().strftime("%Y-%m")
@@ -245,6 +282,15 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     matn = update.message.text
+
+    if user_id in user_states and user_states[user_id].get("kutish"):
+        user_states[user_id] = {"matn": matn}
+        await update.message.reply_text(
+            f"Eshitildi: {matn}\n\nTo'g'rimi?",
+            reply_markup=tasdiqlash_tugmalari()
+        )
+        return
+
     try:
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
@@ -273,18 +319,10 @@ async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not matn:
             await update.message.reply_text("Ovoz tanilmadi.", reply_markup=tugmalar())
             return
-        await update.message.reply_text(f"Eshitildi: {matn}")
-        natija = matn_tahlil(matn)
-        if natija["summa"] is None:
-            await update.message.reply_text("Summa topilmadi.", reply_markup=tugmalar())
-            return
-        xarajat_id = xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
+        user_states[user_id] = {"matn": matn}
         await update.message.reply_text(
-            f"Saqlandi!\n"
-            f"Kategoriya: {natija['kategoriya']}\n"
-            f"Summa: {natija['summa']:,.0f} som\n"
-            f"Izoh: {natija['izoh']}",
-            reply_markup=saqlangan_tugmalar(xarajat_id)
+            f"Eshitildi: {matn}\n\nTo'g'rimi?",
+            reply_markup=tasdiqlash_tugmalari()
         )
     except Exception as e:
         logger.error(f"Ovoz xatosi: {e}")
