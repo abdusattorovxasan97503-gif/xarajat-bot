@@ -47,7 +47,7 @@ def matn_tahlil(matn):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "gpt-4o-mini",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {
                 "role": "system",
