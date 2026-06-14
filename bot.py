@@ -53,7 +53,7 @@ def matn_tahlil(matn):
         "messages": [
             {
                 "role": "system",
-                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
+                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nMuhim: 'min' yoki 'ming' = 1000, '50 min' = 50000, '10 ming' = 10000. Raqamlarni to'liq yozing.\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
             },
             {"role": "user", "content": matn}
         ]
