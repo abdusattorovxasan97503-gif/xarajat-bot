@@ -4,11 +4,11 @@ import logging
 import json
 import requests
 from datetime import datetime
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 logging.basicConfig(level=logging.INFO)
@@ -71,18 +71,61 @@ def ovoz_matn(fayl_yoli):
             data={"model": "whisper-large-v3", "language": "uz"},
             files={"file": ("audio.ogg", f, "audio/ogg")}
         )
-    logger.info(f"Groq Whisper: {response.status_code} - {response.text}")
     if response.status_code != 200:
         raise Exception(f"Groq xato {response.status_code}: {response.text}")
     return response.json().get("text", "")
+
+def tugmalar():
+    keyboard = [
+        [
+            InlineKeyboardButton("Hisobot", callback_data="hisobot"),
+            InlineKeyboardButton("Tozalash", callback_data="tozala")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+async def oylik_hisobot_yuborish(app):
+    conn = sqlite3.connect("xarajatlar.db")
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT user_id FROM xarajatlar")
+    foydalanuvchilar = c.fetchall()
+    conn.close()
+
+    oy = datetime.now().strftime("%Y-%m")
+
+    for (user_id,) in foydalanuvchilar:
+        conn = sqlite3.connect("xarajatlar.db")
+        c = conn.cursor()
+        c.execute("""
+            SELECT kategoriya, SUM(summa)
+            FROM xarajatlar
+            WHERE user_id=? AND sana LIKE ?
+            GROUP BY kategoriya
+            ORDER BY SUM(summa) DESC
+        """, (user_id, f"{oy}%"))
+        natijalar = c.fetchall()
+        conn.close()
+
+        if not natijalar:
+            continue
+
+        jami = sum(r[1] for r in natijalar)
+        xabar = f"{oy} oyi yakuniy hisoboti\n\n"
+        for kategoriya, summa in natijalar:
+            xabar += f"{kategoriya}: {summa:,.0f} som\n"
+        xabar += f"\nJami: {jami:,.0f} som"
+
+        try:
+            await app.bot.send_message(chat_id=user_id, text=xabar)
+        except Exception as e:
+            logger.error(f"Hisobot yuborishda xato {user_id}: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Salom! Men xarajat hisobchi botman\n\n"
         "Ovozli yoki matnli xabar yuboring:\n"
-        "Masalan: Nonga 20000 sarf qildim\n\n"
-        "Hisobot uchun: /hisobot\n"
-        "Tozalash uchun: /tozala"
+        "Masalan: Nonga 20000 sarf qildim",
+        reply_markup=tugmalar()
     )
 
 async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -91,8 +134,8 @@ async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c = conn.cursor()
     oy = datetime.now().strftime("%Y-%m")
     c.execute("""
-        SELECT kategoriya, SUM(summa) 
-        FROM xarajatlar 
+        SELECT kategoriya, SUM(summa)
+        FROM xarajatlar
         WHERE user_id=? AND sana LIKE ?
         GROUP BY kategoriya
         ORDER BY SUM(summa) DESC
@@ -101,15 +144,15 @@ async def hisobot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
     if not natijalar:
-        await update.message.reply_text("Bu oy hali xarajat kiritilmagan.")
+        await update.message.reply_text("Bu oy hali xarajat kiritilmagan.", reply_markup=tugmalar())
         return
 
     jami = sum(r[1] for r in natijalar)
-    xabar = f"{datetime.now().strftime('%Y-%m')} oyi hisoboti\n\n"
+    xabar = f"{oy} oyi hisoboti\n\n"
     for kategoriya, summa in natijalar:
         xabar += f"{kategoriya}: {summa:,.0f} som\n"
     xabar += f"\nJami: {jami:,.0f} som"
-    await update.message.reply_text(xabar)
+    await update.message.reply_text(xabar, reply_markup=tugmalar())
 
 async def tozala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -118,7 +161,45 @@ async def tozala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("DELETE FROM xarajatlar WHERE user_id=?", (user_id,))
     conn.commit()
     conn.close()
-    await update.message.reply_text("Barcha xarajatlar ochirildi.")
+    await update.message.reply_text("Barcha xarajatlar ochirildi.", reply_markup=tugmalar())
+
+async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    if query.data == "hisobot":
+        conn = sqlite3.connect("xarajatlar.db")
+        c = conn.cursor()
+        oy = datetime.now().strftime("%Y-%m")
+        c.execute("""
+            SELECT kategoriya, SUM(summa)
+            FROM xarajatlar
+            WHERE user_id=? AND sana LIKE ?
+            GROUP BY kategoriya
+            ORDER BY SUM(summa) DESC
+        """, (user_id, f"{oy}%"))
+        natijalar = c.fetchall()
+        conn.close()
+
+        if not natijalar:
+            await query.message.reply_text("Bu oy hali xarajat kiritilmagan.", reply_markup=tugmalar())
+            return
+
+        jami = sum(r[1] for r in natijalar)
+        xabar = f"{oy} oyi hisoboti\n\n"
+        for kategoriya, summa in natijalar:
+            xabar += f"{kategoriya}: {summa:,.0f} som\n"
+        xabar += f"\nJami: {jami:,.0f} som"
+        await query.message.reply_text(xabar, reply_markup=tugmalar())
+
+    elif query.data == "tozala":
+        conn = sqlite3.connect("xarajatlar.db")
+        c = conn.cursor()
+        c.execute("DELETE FROM xarajatlar WHERE user_id=?", (user_id,))
+        conn.commit()
+        conn.close()
+        await query.message.reply_text("Barcha xarajatlar ochirildi.", reply_markup=tugmalar())
 
 async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -126,18 +207,19 @@ async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
-            await update.message.reply_text("Summa topilmadi. Masalan: Nonga 20000 sarf qildim")
+            await update.message.reply_text("Summa topilmadi. Masalan: Nonga 20000 sarf qildim", reply_markup=tugmalar())
             return
         xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
             f"Saqlandi!\n"
             f"Kategoriya: {natija['kategoriya']}\n"
             f"Summa: {natija['summa']:,.0f} som\n"
-            f"Izoh: {natija['izoh']}"
+            f"Izoh: {natija['izoh']}",
+            reply_markup=tugmalar()
         )
     except Exception as e:
         logger.error(f"Xato: {e}")
-        await update.message.reply_text(f"Xatolik: {e}")
+        await update.message.reply_text(f"Xatolik: {e}", reply_markup=tugmalar())
 
 async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -148,30 +230,44 @@ async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await fayl.download_to_drive(fayl_yoli)
         matn = ovoz_matn(fayl_yoli)
         if not matn:
-            await update.message.reply_text("Ovoz tanilmadi. Aniqroq gapiring.")
+            await update.message.reply_text("Ovoz tanilmadi.", reply_markup=tugmalar())
             return
         await update.message.reply_text(f"Eshitildi: {matn}")
         natija = matn_tahlil(matn)
         if natija["summa"] is None:
-            await update.message.reply_text("Summa topilmadi.")
+            await update.message.reply_text("Summa topilmadi.", reply_markup=tugmalar())
             return
         xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
             f"Saqlandi!\n"
             f"Kategoriya: {natija['kategoriya']}\n"
             f"Summa: {natija['summa']:,.0f} som\n"
-            f"Izoh: {natija['izoh']}"
+            f"Izoh: {natija['izoh']}",
+            reply_markup=tugmalar()
         )
     except Exception as e:
         logger.error(f"Ovoz xatosi: {e}")
-        await update.message.reply_text(f"Xatolik: {e}")
+        await update.message.reply_text(f"Xatolik: {e}", reply_markup=tugmalar())
 
 def main():
     init_db()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        oylik_hisobot_yuborish,
+        trigger="cron",
+        day="last",
+        hour=20,
+        minute=0,
+        args=[app]
+    )
+    scheduler.start()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("hisobot", hisobot))
     app.add_handler(CommandHandler("tozala", tozala))
+    app.add_handler(CallbackQueryHandler(tugma_bosildi))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, matn_xabar))
     app.add_handler(MessageHandler(filters.VOICE, ovoz_xabar))
     logger.info("Bot ishga tushdi!")
