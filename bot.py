@@ -39,7 +39,9 @@ def xarajat_saqlash(user_id, kategoriya, summa, izoh):
         (user_id, kategoriya, summa, izoh, sana)
     )
     conn.commit()
+    xarajat_id = c.lastrowid
     conn.close()
+    return xarajat_id
 
 def matn_tahlil(matn):
     headers = {
@@ -84,6 +86,16 @@ def tugmalar():
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def saqlangan_tugmalar(xarajat_id):
+    keyboard = [
+        [InlineKeyboardButton("O'chirish", callback_data=f"del_{xarajat_id}")],
+        [
+            InlineKeyboardButton("Hisobot", callback_data="hisobot"),
+            InlineKeyboardButton("Tozalash", callback_data="tozala")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 async def oylik_hisobot_yuborish(app):
     conn = sqlite3.connect("xarajatlar.db")
     c = conn.cursor()
@@ -92,7 +104,6 @@ async def oylik_hisobot_yuborish(app):
     conn.close()
 
     oy = datetime.now().strftime("%Y-%m")
-
     for (user_id,) in foydalanuvchilar:
         conn = sqlite3.connect("xarajatlar.db")
         c = conn.cursor()
@@ -122,9 +133,18 @@ async def oylik_hisobot_yuborish(app):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Salom! Men xarajat hisobchi botman\n\n"
-        "Ovozli yoki matnli xabar yuboring:\n"
-        "Masalan: Nonga 20000 sarf qildim",
+        "Salom! Men Xarajat Hisobchi botman\n\n"
+        "Mening vazifam:\n"
+        "- Ovozli yoki matnli xarajatlaringizni qabul qilaman\n"
+        "- Kategoriyalarga ajratib saqlayman\n"
+        "- Har oy yakunida hisobot yuboraman\n\n"
+        "Ishlatish juda oson:\n"
+        "Shunchaki ovozli xabar yuboring:\n"
+        "Masalan: 'Nonga 20000 sarf qildim'\n"
+        "Yoki matn yozing: 'Taksi 15000'\n\n"
+        "Har oyning oxirida barcha xarajatlaringiz\n"
+        "hisoboti avtomatik yuboriladi!\n\n"
+        "Boshlaylik!",
         reply_markup=tugmalar()
     )
 
@@ -201,6 +221,15 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
         await query.message.reply_text("Barcha xarajatlar ochirildi.", reply_markup=tugmalar())
 
+    elif query.data.startswith("del_"):
+        xid = int(query.data.split("_")[1])
+        conn = sqlite3.connect("xarajatlar.db")
+        c = conn.cursor()
+        c.execute("DELETE FROM xarajatlar WHERE id=? AND user_id=?", (xid, user_id))
+        conn.commit()
+        conn.close()
+        await query.message.reply_text("Xarajat o'chirildi.", reply_markup=tugmalar())
+
 async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     matn = update.message.text
@@ -209,13 +238,13 @@ async def matn_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if natija["summa"] is None:
             await update.message.reply_text("Summa topilmadi. Masalan: Nonga 20000 sarf qildim", reply_markup=tugmalar())
             return
-        xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
+        xarajat_id = xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
             f"Saqlandi!\n"
             f"Kategoriya: {natija['kategoriya']}\n"
             f"Summa: {natija['summa']:,.0f} som\n"
             f"Izoh: {natija['izoh']}",
-            reply_markup=tugmalar()
+            reply_markup=saqlangan_tugmalar(xarajat_id)
         )
     except Exception as e:
         logger.error(f"Xato: {e}")
@@ -237,13 +266,13 @@ async def ovoz_xabar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if natija["summa"] is None:
             await update.message.reply_text("Summa topilmadi.", reply_markup=tugmalar())
             return
-        xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
+        xarajat_id = xarajat_saqlash(user_id, natija["kategoriya"], natija["summa"], natija["izoh"])
         await update.message.reply_text(
             f"Saqlandi!\n"
             f"Kategoriya: {natija['kategoriya']}\n"
             f"Summa: {natija['summa']:,.0f} som\n"
             f"Izoh: {natija['izoh']}",
-            reply_markup=tugmalar()
+            reply_markup=saqlangan_tugmalar(xarajat_id)
         )
     except Exception as e:
         logger.error(f"Ovoz xatosi: {e}")
