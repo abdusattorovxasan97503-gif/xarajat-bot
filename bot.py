@@ -70,7 +70,7 @@ def ovoz_matn(fayl_yoli):
         response = requests.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers=headers,
-            data={"model": "whisper-large-v3", "language": "uz"},
+            data={"model": "whisper-large-v3",},
             files={"file": ("audio.ogg", f, "audio/ogg")}
         )
     if response.status_code != 200:
