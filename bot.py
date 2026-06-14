@@ -53,8 +53,7 @@ def matn_tahlil(matn):
         "messages": [
             {
                 "role": "system",
-                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nMuhim: 'min' yoki 'ming' = 1000, '50 min' = 50000, '10 ming' = 10000. Raqamlarni to'liq yozing.\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
-            },
+                "content": "Foydalanuvchi xarajat haqida matn yozadi. Siz undan kategoriya va summani ajratib oling. Javobni faqat JSON formatida bering: {\"kategoriya\": \"...\", \"summa\": 12345, \"izoh\": \"...\"}\n\nKategoriyalar: oziq-ovqat, transport, kiyim, kommunal, soglik, talim, kongilochar, boshqa\n\nMuhim qoidalar:\n- 'min', 'ming', 'мин', 'миң' = 1000 koeffitsienti\n- 'yigirma' = 20, 'o'ttiz' = 30, 'qirq' = 40, 'ellik' = 50\n- 'yigirma ming' = 20000, 'o'ttiz ming' = 30000\n- Raqam va so'zni birgalikda hisobla\n\nAgar summa topilmasa: {\"kategoriya\": null, \"summa\": null, \"izoh\": null}"
             {"role": "user", "content": matn}
         ]
     }
