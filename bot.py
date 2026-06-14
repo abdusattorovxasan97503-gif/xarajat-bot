@@ -9,6 +9,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,17 +63,17 @@ def matn_tahlil(matn):
     return json.loads(text)
 
 def ovoz_matn(fayl_yoli):
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
     with open(fayl_yoli, "rb") as f:
         response = requests.post(
-            "https://api.openai.com/v1/audio/transcriptions",
+            "https://api.groq.com/openai/v1/audio/transcriptions",
             headers=headers,
-            data={"model": "whisper-1", "language": "uz"},
+            data={"model": "whisper-large-v3", "language": "uz"},
             files={"file": ("audio.ogg", f, "audio/ogg")}
         )
-    logger.info(f"Whisper: {response.status_code} - {response.text}")
+    logger.info(f"Groq Whisper: {response.status_code} - {response.text}")
     if response.status_code != 200:
-        raise Exception(f"Whisper xato {response.status_code}: {response.text}")
+        raise Exception(f"Groq xato {response.status_code}: {response.text}")
     return response.json().get("text", "")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
