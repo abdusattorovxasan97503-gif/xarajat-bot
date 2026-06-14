@@ -43,7 +43,7 @@ def xarajat_saqlash(user_id, kategoriya, summa, izoh):
 
 def matn_tahlil(matn):
     headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
@@ -56,7 +56,7 @@ def matn_tahlil(matn):
             {"role": "user", "content": matn}
         ]
     }
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+    response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
     result = response.json()
     text = result["choices"][0]["message"]["content"].strip()
     text = text.replace("```json", "").replace("```", "").strip()
