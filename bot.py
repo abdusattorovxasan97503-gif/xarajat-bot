@@ -253,16 +253,19 @@ def main():
     init_db()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(
-        oylik_hisobot_yuborish,
-        trigger="cron",
-        day="last",
-        hour=20,
-        minute=0,
-        args=[app]
-    )
-    scheduler.start()
+    async def post_init(application):
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            oylik_hisobot_yuborish,
+            trigger="cron",
+            day="last",
+            hour=20,
+            minute=0,
+            args=[application]
+        )
+        scheduler.start()
+
+    app.post_init = post_init
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("hisobot", hisobot))
